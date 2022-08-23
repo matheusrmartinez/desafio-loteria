@@ -1,83 +1,140 @@
-import { useState } from "react";
-import "./App.css";
+import { useEffect, useState } from "react";
+import "./global.css";
 import Select from "./components/Select";
-import { Option } from "./types";
+import { Contest, ContestData, Lottery } from "./types";
 import Logo from "./assets/logo_sena.svg";
-import { SortedNumber } from "./components/SortedNumber";
 import { SortedNumberList } from "./components/SortedNumberList";
+import { contestColors } from "./theme/colors";
+import { api } from "./utils/api";
+import { AxiosError } from "axios";
+import { format, parseISO } from "date-fns";
 
 function App() {
-  const contestData = [
-    {
-      id: 0,
-      nome: "mega-sena",
-    },
-    {
-      id: 1,
-      nome: "quina",
-    },
-    {
-      id: 2,
-      nome: "lotofácil",
-    },
-    {
-      id: 3,
-      nome: "lotomania",
-    },
-    {
-      id: 4,
-      nome: "timemania",
-    },
-    {
-      id: 5,
-      nome: "dia de sorte",
-    },
-  ] as Option[];
-
-  const [contests, setContests] = useState<Option[]>(contestData);
+  const [lotteries, setLotteries] = useState<Lottery[]>([]);
+  const [contests, setContests] = useState<Contest[]>([]);
+  const [contestData, setContestData] = useState<ContestData>(
+    {} as ContestData
+  );
   const [selectedContest, setSelectedContest] = useState("");
+  const [selectedContestNumber, setSelectedContestNumber] = useState<number>();
 
   const handleOnSelectValueChange = (selectedContest: string) => {
     setSelectedContest(selectedContest);
-    const contestId = getContestIdByText(selectedContest);
+    setSelectedContestNumber(getContestNumberByText(selectedContest));
   };
 
-  const getContestIdByText = (selectedContest: string) => {
-    return contests.find((contest) => contest.nome === selectedContest)?.id;
+  const getContestNumberByText = (selectedContest: string) => {
+    return lotteries.find((contest) => contest.nome === selectedContest)?.id;
   };
 
-  const numberData = ["06", "09", "28", "33", "37", "40"];
+  const getBackgroundColor = () => {
+    const formattedText = selectedContest
+      .normalize("NFD")
+      .replace(/[^a-zA-Z ]/g, "")
+      .replaceAll(/\s/g, "")
+      .toLowerCase();
+    return contestColors[formattedText || "megasena"];
+  };
+
+  useEffect(() => {
+    const getLotteries = async () => {
+      try {
+        const { data } = await api.get<Lottery[]>("/loterias");
+
+        setLotteries(data);
+      } catch (error) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response) {
+          console.error({
+            data: axiosError.response.data,
+            status: axiosError.response.status,
+          });
+        } else {
+          console.log("Error", axiosError.message);
+        }
+      }
+    };
+
+    const getContests = async () => {
+      try {
+        const { data } = await api.get<Contest[]>("/loterias-concursos");
+
+        setContests(data);
+      } catch (error) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response) {
+          console.error({
+            data: axiosError.response.data,
+            status: axiosError.response.status,
+          });
+        } else {
+          console.log("Error", axiosError.message);
+        }
+      }
+    };
+
+    getContests();
+    getLotteries();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedContest) return;
+    const contestId = contests.find(
+      (lottery) => lottery.loteriaId === selectedContestNumber
+    )?.concursoId;
+
+    const getContestById = async () => {
+      try {
+        const { data } = await api.get<ContestData>(`/concursos/${contestId}`);
+
+        const formattedDate = format(parseISO(data.data), "dd/MM/yyyy");
+
+        setContestData({ ...data, dataFormatada: formattedDate });
+      } catch (error) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response) {
+          console.error({
+            data: axiosError.response.data,
+            status: axiosError.response.status,
+          });
+        } else {
+          console.log("Error", axiosError.message);
+        }
+      }
+    };
+
+    getContestById();
+  }, [selectedContest]);
 
   return (
-    <div className="App">
+    <div>
       <div
         style={{
           width: "100%",
           height: "100vh",
           display: "flex",
           flexDirection: "row",
+          backgroundColor: getBackgroundColor(),
         }}
       >
         <div
           style={{
-            width: "30%",
+            width: "40%",
             paddingLeft: "96px",
-            height: "100vh",
-            backgroundColor: "#6befa3",
             minWidth: "400px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-around",
           }}
         >
-          <div style={{ paddingTop: "92px" }}>
-            <Select
-              onValueChange={handleOnSelectValueChange}
-              options={contestData}
-              label="Concuros"
-              labelPlaceHolder="Selecione o concurso"
-            />
-          </div>
+          <Select
+            onValueChange={handleOnSelectValueChange}
+            lotteries={lotteries}
+            label="Concuros"
+            labelPlaceHolder="Selecione o concurso"
+          />
           <div
             style={{
-              height: "100vh",
               display: "flex",
               alignItems: "center",
               flexDirection: "row",
@@ -96,7 +153,14 @@ function App() {
               {selectedContest.toUpperCase()}
             </p>
           </div>
-          <div style={{ bottom: "50px", position: "absolute" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+              gap: 15,
+            }}
+          >
             <p
               style={{
                 fontFamily: "Montserrat",
@@ -107,7 +171,7 @@ function App() {
                 lineHeight: "17px",
               }}
             >
-              CONCURSO
+              {selectedContest && "CONCURSO"}
             </p>
             <p
               style={{
@@ -118,18 +182,31 @@ function App() {
                 lineHeight: "17px",
               }}
             >
-              4531 - 07/04/2020
+              {selectedContest &&
+                `${contestData.id} - ${contestData.dataFormatada}`}
             </p>
           </div>
         </div>
-        <SortedNumberList numbers={numberData} />
-        <div style={{ position: "absolute", bottom: "55px", left: "1000px" }}>
+        <div
+          style={{
+            height: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            backgroundColor: "#EFEFEF",
+            alignItems: "center",
+            width: "100%",
+            justifyContent: "space-around",
+          }}
+        >
+          <div style={{ display: "hidden", marginTop: "20px" }} />
+          <SortedNumberList numbers={contestData?.numeros} />
           <p
             style={{
               fontFamily: "Montserrat",
               fontSize: "16px",
               fontWeight: 400,
               wordBreak: "break-word",
+              display: selectedContest ? "inline" : "none",
             }}
           >
             Este sorteio é meramente ilustrativo e não possui nenhuma ligação

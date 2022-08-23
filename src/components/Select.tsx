@@ -140,7 +140,7 @@ export const SelectScrollDownButton = StyledScrollDownButton;
 const Box = styled("div", {});
 
 export const Select = ({
-  options,
+  lotteries: options,
   label,
   labelPlaceHolder,
   onValueChange,
@@ -160,7 +160,7 @@ export const Select = ({
         <SelectViewport>
           <SelectGroup>
             <SelectLabel>{label}</SelectLabel>
-            {options.map((option) => (
+            {options?.map((option) => (
               <SelectItem value={option.nome}>
                 <SelectItemText>{option.nome.toUpperCase()}</SelectItemText>
                 <SelectItemIndicator>

@@ -8,22 +8,21 @@ export const SortedNumberList = ({ numbers }: SortedNumberListProps) => {
   return (
     <div
       style={{
-        backgroundColor: "#EFEFEF",
         display: "grid",
         columnGap: "50px",
         alignItems: "center",
         width: "100%",
-        height: "100vh",
+        height: "auto",
         justifyContent: "center",
+        justifyItems: "center",
         gridTemplateColumns: "repeat(6, 50px)",
         gridTemplateRows: "auto ",
         gap: "5rem",
         minWidth: "874px",
       }}
     >
-      {numbers.map((number) => (
-        <SortedNumber number={number} />
-      ))}
+      {numbers &&
+        numbers.map((number) => <SortedNumber key={number} number={number} />)}
     </div>
   );
 };
